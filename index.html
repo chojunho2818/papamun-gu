@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>파파문구 - 주문서</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://ivpjcllfsoegveghsaq.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_Dz8wsfJ6bZzQLaUExlrYdQ_kL0ygc65";
+    const ADMIN_PASSWORD = "1234";
+
+    const { createClient } = window.supabase;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let isAdmin = false;
+    let products = [];
+
+    window.onload = async () => {
+      if (!SUPABASE_ANON_KEY) {
+        document.getElementById('productList').innerHTML = '<span style="color:red">관리자 키를 입력하면 상품이 표시됩니다</span>';
+        return;
+      }
+      await loadProducts();
+      renderProductList();
+      setupRealtimeOrders();
+    };
+
+    async function loadProducts() {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, price, stock, active')
+        .eq('active', true)
+        .order('name');
+      
+      if (error) {
+        console.error('상품 불러오기 오류:', error);
+        return;
+      }
+      products = (data || []).filter(p => p.stock > 0);
+    }
+
+    function renderProductList() {
+      const container = document.getElementById('productList');
+      if (products.length === 0) {
+        container.innerHTML = '<p>판매 중인 상품이 없습니다</p>';
+        return;
+      }
+      container.innerHTML = products.map(p => `
+        <div style="border:1px solid #ddd; padding:10px; margin:8px 0; border-radius:6px;">
+          <strong>${p.name}</strong><br>
+          ${p.price.toLocaleString()}원 / 재고: ${p.stock}개
+        </div>
+      `).join('');
+    }
+
+    function changeQty(id, delta) {
+      const input = document.getElementById(`qty_${id}`);
+      if (!input) return;
+      const val = Math.max(0, Math.min(parseInt(input.value) || 0, 999)) + delta;
+      input.value = val;
+      updateTotal();
+    }
+
+    function updateTotal() {
+      let total = 0;
+      products.forEach(p => {
+        const qty = parseInt(document.getElementById(`qty_${p.id}`)?.value) || 0;
+        total += qty * p.price;
+      });
+      document.getElementById('totalAmount').textContent = `총 주문금액: ${total.toLocaleString()}원`;
+    }
+  </script>
+  <style>
+    /* 스타일은 여기에 작성하세요 */
+  </style>
+</head>
+<body>
+  <h1>파파문구 주문서</h1>
+  <div id="productList"></div>
+</body>
+</html>
